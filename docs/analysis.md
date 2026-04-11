@@ -8,8 +8,6 @@ Water Sort is a logic-based puzzle game. You are given a set of tubes, each fill
 
 The number of tubes, the capacity of each tube, and the number of colors all vary by level — there is no fixed format. What stays constant is the rule system.
 
-The game has no timer, no randomness, and no hidden information. Every tube and every layer is visible at all times. It is a game of pure logic — if you fail, your reasoning failed, not the board.
-
 ---
 
 ## The Game Model
