@@ -59,6 +59,7 @@ Comprehensive technical documentation is available in the `docs/` directory:
 - **[analysis.md](docs/analysis.md)** - Game rules, logic, and solving principles
 - **[comparision.md](docs/comparision.md)** - Algorithm performance comparison with real data
 - **[a_star_implementation.md](docs/a_star_implementation.md)** - Complete A* implementation guide
+- **[EXAMPLES.md](docs/EXAMPLES.md)** - 5 example puzzles with solutions and algorithm comparisons
 
 ## Algorithm Performance
 

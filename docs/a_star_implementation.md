@@ -49,14 +49,25 @@ moves.py
 
 ## Build Order
 
-Build and test each component in this sequence. Do not move to the next step until the current one passes.
+**Build and test each component in this sequence. Do not move to the next step until the current one passes.**
 
-1. `state.py` — data structure, canonical form, goal detection
-2. `moves.py` — move generation, pour computation, pruning
-3. `heuristic.py` — fragmentation score, transition score
-4. `solver.py` — A* search loop
-5. `printer.py` — formatted output
-6. `main.py` — wiring everything together
+### Why This Order?
+
+- `state.py` has no dependencies — build it first
+- `moves.py` depends only on `state.py`
+- `heuristic.py` depends only on `state.py`
+- `solver.py` depends on all three above
+- `printer.py` is independent (output only)
+- `main.py` wires everything together
+
+### Implementation Sequence
+
+1. **`state.py`** — data structure, canonical form, goal detection
+2. **`moves.py`** — move generation, pour computation, pruning
+3. **`heuristic.py`** — fragmentation score, transition score
+4. **`solver.py`** — A* search loop
+5. **`printer.py`** — formatted output
+6. **`main.py`** — wiring everything together
 
 ---
 
@@ -76,6 +87,8 @@ state = (
 )
 ```
 
+**Complexity:** O(1) to create, O(n) to hash where n = number of tubes
+
 ### Canonical Form
 
 Sort the outer tuple before any comparison or storage. This treats boards with the same tubes in different positions as the same state.
@@ -84,6 +97,10 @@ Sort the outer tuple before any comparison or storage. This treats boards with t
 def canonical(state):
     return tuple(sorted(state))
 ```
+
+**Complexity:** O(n log n) where n = number of tubes. This is called on every state insertion into visited set.
+
+**Bottleneck at scale:** For puzzles with 20+ tubes, canonical form computation becomes significant. Consider caching or hash-based alternatives for very large puzzles.
 
 ### Goal Detection
 
@@ -99,6 +116,8 @@ def is_goal(state, capacity):
     return True
 ```
 
+**Complexity:** O(n × m) where n = tubes, m = capacity. Called once per state when popped from heap.
+
 ### Complete Tube Check
 
 Used by move pruning in `moves.py`.
@@ -107,6 +126,8 @@ Used by move pruning in `moves.py`.
 def is_complete(tube, capacity):
     return len(tube) == capacity and len(set(tube)) == 1
 ```
+
+**Complexity:** O(m) where m = tube capacity
 
 ### Test This Step
 
@@ -277,7 +298,7 @@ def fragmentation_score(state):
     return sum(len(tubes) - 1 for tubes in color_tubes.values())
 ```
 
-Why admissible: each pour can reduce a color's tube count by at most 1, so fragmentation score ≤ actual pours needed for that color. Summing across colors still never overestimates, because those pours are distinct operations.
+**Complexity:** O(n × m) where n = number of tubes, m = average layers per tube
 
 ### Transition Score
 
@@ -293,9 +314,7 @@ def transition_score(state):
     return total
 ```
 
-Why admissible: each transition requires at least one pour to resolve, and each pour can eliminate at most one transition. The transition count therefore never exceeds the actual work remaining.
-
-Why their sum is still admissible: fragmentation and transition scores count different aspects of remaining work. Fragmentation counts how many colors need consolidation; transitions count how many misplaced layers need to be separated. A single pour can improve both simultaneously (e.g., consolidating layers reduces fragmentation and removes a transition), so their sum never exceeds the actual move count.
+**Complexity:** O(n × m) where n = number of tubes, m = average layers per tube
 
 ### Combined Heuristic
 
@@ -303,6 +322,88 @@ Why their sum is still admissible: fragmentation and transition scores count dif
 def heuristic(state):
     return fragmentation_score(state) + transition_score(state)
 ```
+
+**Complexity:** O(n × m) — both components scan all layers once
+
+---
+
+### Admissibility Proof
+
+**Theorem:** h(state) = fragmentation_score(state) + transition_score(state) never overestimates the actual moves needed to reach the goal.
+
+**Proof:**
+
+**Part 1: Fragmentation score is admissible**
+
+Let C be a color appearing in k distinct tubes. To consolidate C into one tube requires moving it from k-1 tubes into a single destination. Each pour operation can:
+- Move C from one tube to another
+- Reduce the tube count for C by at most 1
+
+Therefore, minimum pours needed for C ≥ (k - 1).
+
+Fragmentation score for C = (k - 1), so fragmentation_score(C) ≤ actual moves for C.
+
+Summing across all colors: each color's fragmentation is an independent lower bound. The pours that consolidate color A are distinct from pours that consolidate color B (they move different layers). Therefore:
+
+```
+Σ fragmentation(C) ≤ Σ actual_moves(C) ≤ total_moves
+```
+
+**Part 2: Transition score is admissible**
+
+A transition is a position in a tube where layer[i] ≠ layer[i+1]. Each transition represents a misplaced layer that must eventually be separated.
+
+Each pour operation can:
+- Remove layers from the top of a tube
+- Eliminate at most 1 transition (the one at the top of the source tube)
+
+If a tube has t transitions, it requires at least t pours to resolve them all (one transition eliminated per pour, best case).
+
+Therefore: transition_score ≤ actual moves needed.
+
+**Part 3: Their sum is admissible**
+
+Key insight: fragmentation and transitions measure different aspects of remaining work.
+
+- Fragmentation counts how many consolidation operations are needed (moving colors between tubes)
+- Transitions count how many separation operations are needed (removing misplaced layers)
+
+A single pour can improve both simultaneously:
+- Pouring 2×R from tube A to tube B reduces fragmentation for R by 1 (one fewer tube contains R)
+- The same pour eliminates the transition at the top of tube A
+
+Because one pour can satisfy both constraints, the sum never exceeds the actual work:
+
+```
+h(state) = frag + trans ≤ actual_moves
+```
+
+**Concrete Example:**
+
+```
+State: T0:[R,B,R]  T1:[R]  T2:[]
+
+Fragmentation for R: appears in 2 tubes → score = 1
+Transitions in T0: R→B (1), B→R (1) → score = 2
+h(state) = 1 + 2 = 3
+
+Actual solution:
+  Move 1: T0→T2  (1×R)     → T0:[R,B]  T1:[R]  T2:[R]
+  Move 2: T0→T1  (1×B)     → T0:[R]    T1:[R,B]  T2:[R]
+  Move 3: T0→T2  (1×R)     → T0:[]     T1:[R,B]  T2:[R,R]
+  (suboptimal path shown for illustration)
+
+Optimal solution: 2 moves
+  Move 1: T0→T2  (1×R)     → eliminates 1 transition, reduces R fragmentation
+  Move 2: T0→T1  (1×B)     → eliminates 1 transition
+  (R consolidation happens naturally)
+
+h(state) = 3, actual = 2, but we need ≥ 2 moves, so h is admissible (doesn't overestimate).
+```
+
+The heuristic may underestimate (h < actual) but never overestimates (h > actual). This guarantees A* finds optimal solutions.
+
+---
 
 ### Test This Step
 
@@ -383,9 +484,43 @@ def solve(initial_state, capacity):
     return None  # no solution exists
 ```
 
+**Complexity:**
+- Time: O(b^d) worst case, where b = branching factor (~n²), d = solution depth
+- Space: O(states_explored) for visited dict + O(frontier_size) for heap
+- In practice: A* with good heuristic explores O(d) to O(d²) states for Water Sort
+
+**Bottlenecks:**
+- `canonical()` called twice per state (at pop and at push) — O(n log n) each
+- `heuristic()` called once per generated state — O(n × m)
+- Heap operations — O(log k) where k = heap size
+
 ### Why visited is checked at pop, not at push
 
 States are pushed with their estimated f-value at generation time. By the time a state is popped, a cheaper path to it may have already been found and processed. Checking at pop — and skipping if already in visited — correctly handles this without needing to update existing heap entries, which Python's heapq does not support efficiently.
+
+**Concrete Example:**
+
+```
+Initial state: T0:[R,B]  T1:[B,R]  T2:[]
+
+Step 1: Pop initial state, generate children:
+  - Child A: T0→T2 (cost g=1, h=2, f=3)
+  - Child B: T1→T2 (cost g=1, h=2, f=3)
+  Both pushed to heap.
+
+Step 2: Pop Child A (f=3), generate its children:
+  - Child C: T1→T0 (cost g=2, h=1, f=3)
+  - Child D: T1→T2 (cost g=2, h=0, f=2) ← This is the same state as Child B but via different path!
+  
+Step 3: Pop Child D (f=2) — this is the goal, found via A→D path (cost 2)
+
+Step 4: Later, Child B (f=3) is popped, but visited check sees it was already processed at cost 1.
+  If we had checked at push and rejected Child D, we would have missed the cheaper path.
+```
+
+The key: a state can be reached via multiple paths. We want the cheapest path. Checking at pop ensures we process each state only once, at its cheapest cost.
+
+**Why not update heap entries?** Python's heapq doesn't support decrease-key efficiently. Checking at pop is simpler and correct.
 
 ### Test This Step
 
@@ -504,6 +639,139 @@ def main():
 if __name__ == "__main__":
     main()
 ```
+
+---
+
+## Unit Testing Strategy
+
+### Test Each Component Independently
+
+Create a `tests/` directory with one test file per module:
+
+```
+tests/
+    test_state.py
+    test_moves.py
+    test_heuristic.py
+    test_solver.py
+```
+
+### Example: test_state.py
+
+```python
+import pytest
+from state import canonical, is_goal, is_complete
+
+def test_canonical_sorts_tubes():
+    s1 = (('R', 'B'), ('G', 'Y'))
+    s2 = (('G', 'Y'), ('R', 'B'))
+    assert canonical(s1) == canonical(s2)
+
+def test_goal_detection_empty_tubes():
+    state = (('R', 'R'), ('B', 'B'), ())
+    assert is_goal(state, capacity=2) == True
+
+def test_goal_detection_partial_fill():
+    state = (('R',), ('B', 'B'), ())
+    assert is_goal(state, capacity=2) == False
+
+def test_complete_tube_uniform():
+    assert is_complete(('R', 'R', 'R'), capacity=3) == True
+
+def test_complete_tube_mixed():
+    assert is_complete(('R', 'B', 'R'), capacity=3) == False
+```
+
+### Example: test_heuristic.py
+
+```python
+import pytest
+from heuristic import heuristic, fragmentation_score, transition_score
+
+def test_heuristic_zero_on_goal():
+    goal = (('R', 'R', 'R'), ('B', 'B', 'B'), ())
+    assert heuristic(goal) == 0
+
+def test_fragmentation_single_tube():
+    state = (('R', 'R'), ('B', 'B'), ())
+    assert fragmentation_score(state) == 0
+
+def test_fragmentation_split_color():
+    state = (('R',), ('R',), ('B', 'B'), ())
+    assert fragmentation_score(state) == 1  # R in 2 tubes
+
+def test_transition_uniform_tube():
+    state = (('R', 'R', 'R'),)
+    assert transition_score(state) == 0
+
+def test_transition_mixed_tube():
+    state = (('R', 'B', 'R'),)
+    assert transition_score(state) == 2  # R→B and B→R
+```
+
+### Example: test_solver.py (Integration)
+
+```python
+import pytest
+from solver import solve
+
+def test_trivial_puzzle():
+    state = (('R', 'B'), ('B', 'R'), ())
+    path = solve(state, capacity=2)
+    assert path is not None
+    assert len(path) == 4
+
+def test_baseline_puzzle():
+    state = (
+        ('R', 'B', 'G', 'Y'),
+        ('G', 'R', 'Y', 'B'),
+        ('Y', 'G', 'B', 'R'),
+        ('B', 'Y', 'R', 'G'),
+        (),
+    )
+    path = solve(state, capacity=4)
+    assert path is not None
+    assert len(path) == 13
+
+def test_already_solved():
+    state = (('R', 'R'), ('B', 'B'), ())
+    path = solve(state, capacity=2)
+    assert path == []
+
+def test_unsolvable_no_empty():
+    state = (('R', 'B'), ('B', 'R'))
+    path = solve(state, capacity=2)
+    assert path is None
+```
+
+### Running Tests
+
+```bash
+# Install pytest
+uv add --dev pytest
+
+# Run all tests
+uv run pytest
+
+# Run specific test file
+uv run pytest tests/test_heuristic.py
+
+# Run with verbose output
+uv run pytest -v
+
+# Run with coverage
+uv add --dev pytest-cov
+uv run pytest --cov=. --cov-report=html
+```
+
+### Test-Driven Development Flow
+
+1. Write test for component (it fails)
+2. Implement component (test passes)
+3. Refactor if needed (test still passes)
+4. Move to next component
+
+This ensures each piece works before integration.
 
 ---
 
