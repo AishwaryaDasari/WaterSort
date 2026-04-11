@@ -145,7 +145,7 @@ Move 12 (T2→T1, 3×G):
 
 Move 13 (T2→T4, 1×Y):
   T0:[R,R,R,R]  T1:[G,G,G,G]  T2:[]         T3:[B,B,B,B]  T4:[Y,Y,Y,Y]
-  ✓ SOLVED
+  SOLVED
 ```
 
 ---
