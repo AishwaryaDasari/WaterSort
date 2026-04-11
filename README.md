@@ -4,7 +4,23 @@ A Python implementation of optimal solvers for the Water Sort puzzle game using 
 
 ## What Is This?
 
-Water Sort is a logic puzzle where you sort colored layers across tubes by pouring between them. This project implements multiple algorithms to find optimal solutions, with A* being the most efficient approach.
+Water Sort is a logic puzzle where you sort colored layers across tubes by pouring between them. This project implements an optimal A* solver that finds the shortest solution.
+
+**Example puzzle:**
+```
+Initial:                    Goal:
+  T0      T1      T2          T0      T1      T2
+ ----    ----    ----        ----    ----    ----
+| R  |  | B  |  |    |      | R  |  | B  |  |    |
+| B  |  | R  |  |    |      | R  |  | B  |  |    |
+ ----    ----    ----        ----    ----    ----
+```
+
+**Rules:**
+- Pour from top of one tube to another
+- Colors must match (or destination is empty)
+- Multiple consecutive layers pour together in one move
+- Goal: Each tube is either full with one color or empty
 
 This is a command-line solver with no graphical interface.
 
@@ -56,10 +72,15 @@ watersort/
 
 Comprehensive technical documentation is available in the `docs/` directory:
 
+- **[GETTING_STARTED.md](docs/GETTING_STARTED.md)** - Tutorial for first-time users
 - **[analysis.md](docs/analysis.md)** - Game rules, logic, and solving principles
-- **[comparision.md](docs/comparision.md)** - Algorithm performance comparison with real data
+- **[comparison.md](docs/comparison.md)** - Algorithm performance comparison (4-color baseline)
 - **[a_star_implementation.md](docs/a_star_implementation.md)** - Complete A* implementation guide
-- **[EXAMPLES.md](docs/EXAMPLES.md)** - 5 example puzzles with solutions and algorithm comparisons
+- **[EXAMPLES.md](docs/EXAMPLES.md)** - Example puzzles with solutions
+- **[GLOSSARY.md](docs/GLOSSARY.md)** - Terminology reference
+- **[TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** - Common issues and solutions
+- **[ENTROPY.md](docs/ENTROPY.md)** - Advanced heuristic analysis
+- **[CRITIQUE.md](docs/CRITIQUE.md)** - Documentation quality assessment
 
 ## Algorithm Performance
 
@@ -128,6 +149,14 @@ uv run python main.py
 ## License
 
 This project is open source. See individual files for details.
+
+## Limitations
+
+- **Puzzle size**: Optimal for 4-6 colors. Puzzles with 10+ colors may take minutes to solve.
+- **Memory**: Large puzzles (8+ colors) can use significant memory for state storage.
+- **Unsolvable puzzles**: Returns `None` if no solution exists. Most puzzles need at least one empty tube.
+- **No GUI**: Command-line interface only, no graphical visualization.
+- **Single algorithm**: Only A* is implemented. Other algorithms (BFS, DFS, IDDFS, Greedy) are documented but not coded.
 
 ## Contributing
 

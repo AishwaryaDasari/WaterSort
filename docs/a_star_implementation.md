@@ -1,5 +1,7 @@
 # Water Sort: A* Solver — Python Implementation Guide
 
+**Important:** This guide is structured in build order. Follow the steps sequentially from Step 1 to Step 6. Each component must be tested before moving to the next.
+
 ---
 
 ## What This Builds
