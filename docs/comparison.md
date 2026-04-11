@@ -1,5 +1,7 @@
 # Water Sort: Algorithm Comparison — 4-Color Baseline
 
+**Note:** This comparison is based on a specific 4-color, 5-tube puzzle configuration. Performance varies significantly with puzzle size, color count, and fragmentation level. See Section 6 for scaling analysis.
+
 ---
 
 ## 1. Test Configuration
@@ -16,7 +18,7 @@ T3: [B, Y, R, G]
 T4: []
 ```
 
-Every color appears exactly four times in total across all tubes. No color is adjacent to itself anywhere in the initial configuration. This is worst-case fragmentation for 4 colors.
+Every color appears exactly four times total across all tubes (not once per tube). No color is adjacent to itself anywhere in the initial configuration. This is worst-case fragmentation for 4 colors.
 
 ### Goal State
 
@@ -200,7 +202,7 @@ Call stack at Move 6:
         ...
 ```
 
-DFS only keeps the current path in memory, not the entire frontier — O(depth) memory regardless of branching width.
+DFS only keeps the current path in memory, not the entire frontier — O(depth) memory for the call stack. However, the visited dictionary (if used) can still be O(states), so total memory is O(depth + states_visited).
 
 **Failure mode:** Suboptimal solutions. DFS does not guarantee the shortest path. On puzzles where the first plausible branch leads into a long detour, DFS returns it without checking whether shorter paths exist. Example:
 
@@ -321,12 +323,37 @@ A few observations:
 
 ## 7. When to Use Each Algorithm
 
-| Algorithm | Use when |
-|---|---|
-| BFS | Correctness matters most; puzzle is small (≤4 colors); guaranteed shortest path required |
-| DFS | Memory is severely constrained; solution length does not matter; depth is bounded |
-| IDDFS | Optimal solution required; memory is constrained; willing to pay node-count cost |
-| A* | Best general choice — optimal solutions efficiently at any scale with a good heuristic |
-| Greedy | Fast approximate solver acceptable; puzzle structure is simple; failure on edge cases tolerable |
+| Algorithm | Use when | Guarantees Optimal? |
+|---|---|---|
+| BFS | Correctness matters most; puzzle is small (≤4 colors); guaranteed shortest path required | Yes |
+| DFS | Memory is severely constrained; solution length does not matter; depth is bounded | No |
+| IDDFS | Optimal solution required; memory is constrained; willing to pay node-count cost | Yes |
+| A* | Best general choice — optimal solutions efficiently at any scale with a good heuristic | Yes |
+| Greedy | Fast approximate solver acceptable; puzzle structure is simple; failure on edge cases tolerable | No |
 
 The data from the baseline puzzle makes the core tradeoff concrete: A* explored 14 nodes to find the optimal solution. BFS explored 66 to find the same solution. IDDFS explored 2,242. The heuristic is not magic — it is structured knowledge about what progress looks like in Water Sort, encoded as a number, allowing A* to ignore the majority of states that BFS and IDDFS had to visit.
+
+---
+
+## 8. Heuristic Admissibility
+
+### Why the Heuristic Never Overestimates
+
+The heuristic h(state) = fragmentation_score(state) + transition_score(state) is **admissible** — it never overestimates the actual moves needed.
+
+**Fragmentation score proof:**
+- A color appearing in k tubes requires at least (k-1) moves to consolidate
+- Each pour can reduce a color's tube count by at most 1
+- Therefore: fragmentation_score ≤ actual consolidation moves needed
+
+**Transition score proof:**
+- Each transition (color change between adjacent layers) must be resolved
+- Each pour can eliminate at most 1 transition (at the top of the source tube)
+- Therefore: transition_score ≤ actual separation moves needed
+
+**Why their sum is admissible:**
+- A single pour can improve both metrics simultaneously
+- Pouring 2×R from tube A to B reduces R's fragmentation AND eliminates transitions in A
+- Because one move can satisfy both constraints, h = frag + trans ≤ actual moves
+
+This guarantee is what makes A* find optimal solutions.

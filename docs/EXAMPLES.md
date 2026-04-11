@@ -194,6 +194,63 @@ No valid moves reduce heuristic further → STUCK
 
 ---
 
+## Example 4b: DFS Suboptimal (2 colors, 4 tubes)
+
+**Configuration:**
+```python
+TUBE_CAPACITY = 2
+INITIAL_STATE = (
+    ('R', 'B'),
+    ('B', 'R'),
+    (),
+    (),
+)
+```
+
+**Initial State:**
+```
+T0: [R, B]
+T1: [B, R]
+T2: []
+T3: []
+```
+
+**DFS Path (suboptimal):**
+
+DFS explores depth-first and might take this path:
+```
+Move 1: T0→T2  (1×B)  →  T0:[R]    T1:[B,R]  T2:[B]    T3:[]
+Move 2: T1→T3  (1×R)  →  T0:[R]    T1:[B]    T2:[B]    T3:[R]
+Move 3: T1→T2  (1×B)  →  T0:[R]    T1:[]     T2:[B,B]  T3:[R]
+Move 4: T0→T1  (1×R)  →  T0:[]     T1:[R]    T2:[B,B]  T3:[R]
+Move 5: T3→T1  (1×R)  →  T0:[]     T1:[R,R]  T2:[B,B]  T3:[]
+```
+
+**DFS Result:** 5 moves (suboptimal)
+
+**Optimal Solution (A*/BFS):**
+```
+Move 1: T0→T2  (1×B)  →  T0:[R]    T1:[B,R]  T2:[B]    T3:[]
+Move 2: T1→T0  (1×R)  →  T0:[R,R]  T1:[B]    T2:[B]    T3:[]
+Move 3: T1→T2  (1×B)  →  T0:[R,R]  T1:[]     T2:[B,B]  T3:[]
+```
+
+**Optimal Result:** 3 moves
+
+**Algorithm Performance:**
+
+| Algorithm | Moves | Nodes Explored | Optimal? | Notes |
+|-----------|-------|----------------|----------|-------|
+| A*        | 3     | 4              | Yes      | Direct path |
+| BFS       | 3     | 12             | Yes      | Explores all depth-1, depth-2 |
+| IDDFS     | 3     | 28             | Yes      | Repetition overhead |
+| DFS       | 5     | 8              | No       | First path found is suboptimal |
+| Greedy    | 3     | 3              | Yes      | Lucky on this one |
+
+**Key Insight:** With 2 empty tubes, DFS has many paths to explore and often picks suboptimal ones first.
+
+---
+
 ## Example 5: Medium (6 colors, 7 tubes)
 
 **Configuration:**
